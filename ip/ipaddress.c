@@ -62,11 +62,13 @@ static void usage(void)
 		"       ip address [ show [ dev IFNAME ] [ scope SCOPE-ID ] [ master DEVICE ]\n"
 		"                         [ nomaster ]\n"
 		"                         [ type TYPE ] [ to PREFIX ] [ FLAG-LIST ]\n"
-		"                         [ label LABEL ] [up] [ vrf NAME ] ]\n"
+		"                         [ label LABEL ] [up] [ vrf NAME ]\n"
+		"                         [ proto ADDRPROTO ] ]\n"
 		"       ip address {showdump|restore}\n"
 		"IFADDR := PREFIX | ADDR peer PREFIX\n"
 		"          [ broadcast ADDR ] [ anycast ADDR ]\n"
 		"          [ label IFNAME ] [ scope SCOPE-ID ] [ metric METRIC ]\n"
+		"          [ proto ADDRPROTO ]\n"
 		"SCOPE-ID := [ host | link | global | NUMBER ]\n"
 		"FLAG-LIST := [ FLAG-LIST ] FLAG\n"
 		"FLAG  := [ permanent | dynamic | secondary | primary |\n"
@@ -75,7 +77,9 @@ static void usage(void)
 		"CONFFLAG-LIST := [ CONFFLAG-LIST ] CONFFLAG\n"
 		"CONFFLAG  := [ home | nodad | mngtmpaddr | noprefixroute | autojoin ]\n"
 		"LIFETIME := [ valid_lft LFT ] [ preferred_lft LFT ]\n"
-		"LFT := forever | SECONDS\n");
+		"LFT := forever | SECONDS\n"
+		"ADDRPROTO := [ NAME | NUMBER ]\n"
+		);
 	iplink_types_usage();
 
 	exit(-1);
@@ -1561,6 +1565,9 @@ int print_addrinfo(struct nlmsghdr *n, void *arg)
 
 	if (filter.family && filter.family != ifa->ifa_family)
 		return 0;
+	if (filter.have_proto && rta_tb[IFA_PROTO] &&
+	    filter.proto != rta_getattr_u8(rta_tb[IFA_PROTO]))
+		return 0;
 
 	if (ifa_label_match_rta(ifa->ifa_index, rta_tb[IFA_LABEL]))
 		return 0;
@@ -1667,6 +1674,14 @@ int print_addrinfo(struct nlmsghdr *n, void *arg)
 		     rtnl_rtscope_n2a(ifa->ifa_scope, b1, sizeof(b1)));
 
 	print_ifa_flags(fp, ifa, ifa_flags);
+
+	if (rta_tb[IFA_PROTO]) {
+		__u8 proto = rta_getattr_u8(rta_tb[IFA_PROTO]);
+
+		if (proto || is_json_context())
+			print_string(PRINT_ANY, "protocol", "proto %s ",
+				     rtnl_addrprot_n2a(proto, b1, sizeof(b1)));
+	}
 
 	if (rta_tb[IFA_LABEL])
 		print_string(PRINT_ANY,
@@ -2189,6 +2204,14 @@ static int ipaddr_list_flush_or_save(int argc, char **argv, int action)
 			} else {
 				filter.kind = *argv;
 			}
+		} else if (strcmp(*argv, "proto") == 0) {
+			__u8 proto;
+
+			NEXT_ARG();
+			if (get_u8(&proto, *argv, 0))
+				invarg("\"proto\" value is invalid\n", *argv);
+			filter.have_proto = true;
+			filter.proto = proto;
 		} else {
 			if (strcmp(*argv, "dev") == 0)
 				NEXT_ARG();
@@ -2513,6 +2536,13 @@ static int ipaddr_modify(int cmd, int flags, int argc, char **argv)
 			} else {
 				ifa_flags |= flag_data->mask;
 			}
+		} else if (strcmp(*argv, "proto") == 0) {
+			__u8 proto;
+
+			NEXT_ARG();
+			if (get_u8(&proto, *argv, 0))
+				invarg("\"proto\" value is invalid\n", *argv);
+			addattr8(&req.n, sizeof(req), IFA_PROTO, proto);
 		} else {
 			if (strcmp(*argv, "local") == 0)
 				NEXT_ARG();

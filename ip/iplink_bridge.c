@@ -41,6 +41,7 @@ static void print_explain(FILE *f)
 		"		  [ vlan_default_pvid VLAN_DEFAULT_PVID ]\n"
 		"		  [ vlan_stats_enabled VLAN_STATS_ENABLED ]\n"
 		"		  [ vlan_stats_per_port VLAN_STATS_PER_PORT ]\n"
+		"		  [ mcast_flood_always ENABLED ]\n"
 		"		  [ mcast_snooping MULTICAST_SNOOPING ]\n"
 		"		  [ mcast_vlan_snooping MULTICAST_VLAN_SNOOPING ]\n"
 		"		  [ mcast_router MULTICAST_ROUTER ]\n"
@@ -245,6 +246,18 @@ static int bridge_parse_opt(struct link_util *lu, int argc, char **argv,
 				bm.optval |= mcvl_bit;
 			else
 				bm.optval &= ~mcvl_bit;
+		} else if (strcmp(*argv, "mcast_flood_always") == 0) {
+			__u32 mcfl_bit = 1 << BR_BOOLOPT_MCAST_FLOOD_ALWAYS;
+			__u8 mcast_flood_always;
+
+			NEXT_ARG();
+			if (get_u8(&mcast_flood_always, *argv, 0))
+				invarg("invalid mcast_flood_always", *argv);
+			bm.optmask |= mcfl_bit;
+			if (mcast_flood_always)
+				bm.optval |= mcfl_bit;
+			else
+				bm.optval &= ~mcfl_bit;
 		} else if (matches(*argv, "mcast_query_use_ifaddr") == 0) {
 			__u8 mcast_qui;
 
@@ -623,6 +636,7 @@ static void bridge_print_opt(struct link_util *lu, FILE *f, struct rtattr *tb[])
 		__u32 mcvl_bit = 1 << BR_BOOLOPT_MCAST_VLAN_SNOOPING;
 		__u32 no_ll_learn_bit = 1 << BR_BOOLOPT_NO_LL_LEARN;
 		__u32 mst_bit = 1 << BR_BOOLOPT_MST_ENABLE;
+		__u32 mcfl_bit = 1 << BR_BOOLOPT_MCAST_FLOOD_ALWAYS;
 		struct br_boolopt_multi *bm;
 
 		bm = RTA_DATA(tb[IFLA_BR_MULTI_BOOLOPT]);
@@ -641,6 +655,11 @@ static void bridge_print_opt(struct link_util *lu, FILE *f, struct rtattr *tb[])
 				   "mst_enabled",
 				   "mst_enabled %u ",
 				   !!(bm->optval & mst_bit));
+		if (bm->optmask & mcfl_bit)
+			print_uint(PRINT_ANY,
+				   "mcast_flood_always",
+				   "mcast_flood_always %u ",
+				   !!(bm->optval & mcfl_bit));
 	}
 
 	if (tb[IFLA_BR_MCAST_ROUTER])

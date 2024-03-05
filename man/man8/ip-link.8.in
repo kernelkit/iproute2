@@ -1703,6 +1703,8 @@ the following additional arguments are supported:
 ] [
 .BI vlan_stats_per_port " VLAN_STATS_PER_PORT "
 ] [
+.BI mcast_flood_always " ENABLED "
+] [
 .BI mcast_snooping " MULTICAST_SNOOPING "
 ] [
 .BI mcast_vlan_snooping " MULTICAST_VLAN_SNOOPING "
@@ -1850,6 +1852,16 @@ per-VLAN stats accounting.
 or disable
 .RI ( VLAN_STATS_PER_PORT " == 0) "
 per-VLAN per-port stats accounting. Can be changed only when there are no port VLANs configured.
+
+.BI mcast_flood_always " ENABLED "
+- always
+.RI ( ENABLED " > 0) "
+flood unknown multicast according to per-port
+.BI mcast_flood
+settings.  By default
+.RI ( ENABLED " == 0). "
+the bridge only floods until it has learned of a querier, or takes on
+the role itself.
 
 .BI mcast_snooping " MULTICAST_SNOOPING "
 - turn multicast snooping on
